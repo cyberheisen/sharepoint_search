@@ -1,5 +1,6 @@
 import csv
 import json
+from numpy import full
 import requests
 import sys
 
@@ -8,8 +9,7 @@ import sys
 url = "https://substrate.office.com/search/api/v2/query"
 bearer_token = ""  #//CHANGE ME//// a valid Bearer token is required
 
-number_of_results = 50
-sub_domain = "subdomain" #//CHANGE ME////   this is the subdomain for https://<subdomain>.sharepoint.com
+sub_domain = "" #//CHANGE ME////   this is the subdomain for https://<subdomain>.sharepoint.com
 
 headers = {"Authorization" : "Bearer " + bearer_token, "Content-Type" : "application/json"}
 
@@ -30,15 +30,16 @@ def search(searchterm,number_of_results):
         exit(-1)
 
 def parse_results(raw_results):
-
+    results = []
     results_dict = json.loads(raw_results)
-    results = results_dict["EntitySets"][0]["ResultSets"][0]["Results"]
-
+    full_results = results_dict["EntitySets"][0]["ResultSets"][0]["Results"]
+    for r in full_results:
+        results.append(r['Source'])
     return results
 
 def write_to_csv(results,searchterm):
  
-    with open(searchterm + ".csv", 'w', newline = "\n") as f:
+    with open(searchterm + ".csv", 'w', newline = "\n", encoding = 'utf-8') as f:
   
         writer = csv.DictWriter(f,results[0].keys())
         writer.writeheader()
@@ -46,12 +47,15 @@ def write_to_csv(results,searchterm):
             writer = csv.DictWriter(f,r.keys())
             writer.writerow(r)  
 def main():
+    number_of_results = None
     if len(sys.argv) > 3  or len(sys.argv) < 2:
         print("usage %s <search term> [number of results]\n" % sys.argv[0])
         exit(-1)
     if len(sys.argv) == 3:
         number_of_results = sys.argv[2]
     searchterm = sys.argv[1]
+    if number_of_results == None:
+        number_of_results = 50
 
     raw_results = search(searchterm,number_of_results)
     results = parse_results(raw_results)
