@@ -1,17 +1,19 @@
 import csv
 import json
-from numpy import full
+import pandas
 import requests
+import string
 import sys
 
 
 
+
 url = "https://substrate.office.com/search/api/v2/query"
-bearer_token = ""  #//CHANGE ME//// a valid Bearer token is required
-
+bearer_token = "" #//CHANGE ME//// 
 sub_domain = "" #//CHANGE ME////   this is the subdomain for https://<subdomain>.sharepoint.com
+user_agent = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/104.0.5112.81 Safari/537.36 Edg/104.0.1293.47"  
+headers = {"user-agent" : user_agent , "Authorization" :  bearer_token, "Content-Type" : "application/json"}
 
-headers = {"Authorization" : "Bearer " + bearer_token, "Content-Type" : "application/json"}
 
 
 def search(searchterm,number_of_results):
@@ -29,23 +31,57 @@ def search(searchterm,number_of_results):
         print(r.text)
         exit(-1)
 
-def parse_results(raw_results):
+def parse_results(raw_results,searchterm):
     results = []
     results_dict = json.loads(raw_results)
     full_results = results_dict["EntitySets"][0]["ResultSets"][0]["Results"]
+   
     for r in full_results:
-        results.append(r['Source'])
+        clean_result = {}
+        source = r['Source']
+        clean_result.update(Created = source['Created'])
+        clean_result.update(LastModifiedTime = source['LastModifiedTime'])
+        clean_result.update(Title = source['Title'])
+        if 'HitHighLightedSummary' not in source:
+            clean_result.update(Summary = source['HitHighlightedSummary'])
+        else:
+            clean_result.update(Summary = "")
+        clean_result.update(Path = source['Path'])
+        clean_result.update(Filename = source['Filename'])
+        clean_result.update(FileExt = source['FileExtension'])
+        clean_result.update(Author = source['AuthorOWSUSER'])
+        clean_result.update(ModifedAuthor = source['ModifiedBy'])
+        clean_result.update(ViewCount = source['ViewCount'])
+        clean_result.update(UniqueViews = source['ViewsLifeTimeUniqueUsers'])
+        clean_result.update(SiteTitle = source['SiteTitle'])
+        clean_result.update(SiteURL = source['SPSiteURL'])
+        clean_result.update(SearchString = searchterm)
+        clean_result.update()
+        results.append(clean_result)
     return results
 
 def write_to_csv(results,searchterm):
  
-    with open(searchterm + ".csv", 'w', newline = "\n", encoding = 'utf-8') as f:
+    # with open(searchterm + "_full.csv", 'w', newline = "\n", encoding = 'utf-8') as f:
   
-        writer = csv.DictWriter(f,results[0].keys())
-        writer.writeheader()
-        for r in results:
-            writer = csv.DictWriter(f,r.keys())
-            writer.writerow(r)  
+    #     writer = csv.DictWriter(f,results[0].keys())
+    #     writer.writeheader()
+    #     for r in results:
+    #         writer = csv.DictWriter(f,r.keys())
+    #         writer.writerow(r) 
+    #cleaner output
+    # keys = results[0].keys()
+
+    # with open(searchterm + ".csv", 'w', newline = "\n", encoding = 'utf-8') as f:
+    #     w = csv.DictWriter(f,keys)
+    #     w.writeheader()
+    #     w.writerows(results)
+    searchterm = searchterm.translate(str.maketrans('','',string.punctuation))
+    df = pandas.DataFrame.from_dict(results)
+    df.to_excel(searchterm + ".xlsx")
+        
+
+
 def main():
     number_of_results = None
     if len(sys.argv) > 3  or len(sys.argv) < 2:
@@ -58,7 +94,7 @@ def main():
         number_of_results = 50
 
     raw_results = search(searchterm,number_of_results)
-    results = parse_results(raw_results)
+    results = parse_results(raw_results,searchterm)
     write_to_csv(results,searchterm)
     exit()
 
